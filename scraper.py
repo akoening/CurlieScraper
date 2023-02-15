@@ -36,18 +36,23 @@ def get_sites(html: BeautifulSoup, category: str) -> list:
     :return: dictionary mapping business name to url and category
     """
     sites = []
-    start = html.find_all("div", class_="site-title")
-    if start:
-        for each in start:
-            site = each.find("a", target="_blank")
-            if site not in sites:
-                current = {
-                    "Name": site.text,
-                    "URL": site.get("href"),
-                    "Category": category,
-                }
-                sites.append(current)
-    return sites
+    try:
+        start = html.find_all("div", class_="site-title")
+        if start:
+            for each in start:
+                site = each.find("a", target="_blank")
+                if site not in sites:
+                    current = {
+                        "Name": site.text,
+                        "URL": site.get("href"),
+                        "Category": category,
+                    }
+                    sites.append(current)
+        return sites
+    except AttributeError:
+        return sites
+
+
 
 
 def get_subcategories(html: BeautifulSoup) -> list:
@@ -73,11 +78,14 @@ def write_to_file(sites: list) -> None:
     :param sites: list of scraped sites
     :return: nothing
     """
-    with open("results2.txt", mode="a") as outfile:
-        for site in sites:
-            outfile.write(json.dumps(site))
-            outfile.write("\n")
-    outfile.close()
+    if len(sites) > 0:
+        with open("results2.txt", mode="a") as outfile:
+            for site in sites:
+                outfile.write(json.dumps(site))
+                outfile.write("\n")
+            outfile.close()
+    else:
+        return
 
 
 def scrape_category(sesh, count):
@@ -108,30 +116,33 @@ def scrape_category(sesh, count):
     VISITED.add(category)
 
 
-    # get subcategories, recursively scrape
+    # get subcategories, put in queue
     sub_cats = get_subcategories(page_text)
     for sub_cat in sub_cats:
-        print(f"Just added {category}")
+        print(f"Just added {sub_cat}")
         QUEUE.put(sub_cat)
-    # scrape_category(sesh, count)
 
 
 def main():
     sesh = requests.session()
     count = 0
 
-    category = "/en/Business/Accounting/"
+    category = "/en/Business/"
     QUEUE.put(category)
     print(f"Just added {category}")
 
     while QUEUE.qsize() > 0:
         scrape_category(sesh, count)
 
-    """
-    category = "Shopping"
-    page_text = search(r, category).find("div")
-    get_subcategories(page_text, r)
-    """
+    category = "/en/Shopping/"
+    QUEUE.put(category)
+    print(f"Just added {category}")
+
+    sesh.close()
+    sesh2 = requests.session
+
+    while QUEUE.qsize() > 0:
+        scrape_category(sesh2, count)
 
 
 if __name__ == "__main__":
