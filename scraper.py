@@ -72,14 +72,15 @@ def get_subcategories(html: BeautifulSoup) -> list:
     return all_cats
 
 
-def write_to_file(sites: list) -> None:
+def write_to_file(sites: list, filename: str) -> None:
     """
     Writes sites to file by name, url, and category
     :param sites: list of scraped sites
+    :param filename: file being written to
     :return: nothing
     """
     if len(sites) > 0:
-        with open("results2.txt", mode="a") as outfile:
+        with open(filename, mode="a") as outfile:
             for site in sites:
                 outfile.write(json.dumps(site))
                 outfile.write("\n")
@@ -88,12 +89,12 @@ def write_to_file(sites: list) -> None:
         return
 
 
-def scrape_category(sesh, count):
+def scrape_category(sesh: requests.Session, count: int, filename: str, parent_cat: str) -> None:
     """
     1) requests category, 2) gets subcategories, 3) gets sites, 4) writes sites to file
     :param sesh: requests session
-    :param category: current category
-    :param top_level_cats: only scrape categories under these top levels
+    :param count: current requests count
+    :param filename: file destination for results
     :return: nothing
     """
     category = QUEUE.get()
@@ -112,38 +113,63 @@ def scrape_category(sesh, count):
     page_text = search(sesh, category).find("div")
 
     sites = get_sites(page_text, category)
-    write_to_file(sites)
+    write_to_file(sites, filename)
     VISITED.add(category)
 
 
     # get subcategories, put in queue
     sub_cats = get_subcategories(page_text)
     for sub_cat in sub_cats:
-        print(f"Just added {sub_cat}")
-        QUEUE.put(sub_cat)
+        if check_cat(sub_cat, parent_cat):
+            print(f"Just added {sub_cat}")
+            QUEUE.put(sub_cat)
+
+def check_cat(category: any, parent_cat: str) -> bool:
+    """
+    Helper function for scrape_category to make sure category is in parent directory
+    before being scraped
+    Args:
+        category: subcategory that's been scraped
+        parent_cat: parent directory category
+    Returns: boolean
+
+    """
+    category = str(category)
+    cat = category.split("/")
+    if cat[2] == parent_cat:
+        return True
+    else:
+        return False
+
 
 
 def main():
     sesh = requests.session()
     count = 0
 
-    category = "/en/Business/"
-    QUEUE.put(category)
-    print(f"Just added {category}")
+    parent_cat = input("Enter a category to scrape: ")
+    QUEUE.put("/en/" + parent_cat)
+    print(f"Just added {parent_cat}")
+    filename = input("Name of file to store scraped results: ")
 
     while QUEUE.qsize() > 0:
-        scrape_category(sesh, count)
+        scrape_category(sesh, count, filename, parent_cat)
 
-    category = "/en/Shopping/"
-    QUEUE.put(category)
-    print(f"Just added {category}")
+    parent_cat = input("Enter another category to scrape, q to quit: ")
+    while parent_cat != "q":
+        sesh.close()
+        count = 0
+
+        sesh = requests.session()
+        QUEUE.put("/en/" + parent_cat)
+        print(f"Just added {parent_cat}")
+
+        while QUEUE.qsize() > 0:
+            scrape_category(sesh, count, filename, parent_cat)
+
+        parent_cat = input("Enter another category to scrape, q to quit: ")
 
     sesh.close()
-    sesh2 = requests.session
-
-    while QUEUE.qsize() > 0:
-        scrape_category(sesh2, count)
-
 
 if __name__ == "__main__":
     main()
