@@ -106,7 +106,7 @@ def scrape_category(sesh: requests.Session, count: int, filename: str, parent_ca
     print(f"Scraping {category}")
     if count == 50:
         sesh.close()
-        sesh = requests.session
+        sesh = requests.session()
         count = 0
 
     count += 1
