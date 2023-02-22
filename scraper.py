@@ -53,8 +53,6 @@ def get_sites(html: BeautifulSoup, category: str) -> list:
         return sites
 
 
-
-
 def get_subcategories(html: BeautifulSoup) -> list:
     """
     Gets subcategories for each site and calls recursively
@@ -79,17 +77,15 @@ def write_to_file(sites: list, filename: str) -> None:
     :param filename: file being written to
     :return: nothing
     """
-    if len(sites) > 0:
-        with open(filename, mode="a") as outfile:
-            for site in sites:
-                outfile.write(json.dumps(site))
-                outfile.write("\n")
-            outfile.close()
-    else:
-        return
+    with open(filename, mode="a") as outfile:
+        for site in sites:
+            outfile.write(json.dumps(site))
+            outfile.write("\n")
 
 
-def scrape_category(sesh: requests.Session, count: int, filename: str, parent_cat: str) -> None:
+def scrape_category(
+    sesh: requests.Session, count: int, filename: str, parent_cat: str
+) -> None:
     """
     1) requests category, 2) gets subcategories, 3) gets sites, 4) writes sites to file
     :param sesh: requests session
@@ -103,10 +99,10 @@ def scrape_category(sesh: requests.Session, count: int, filename: str, parent_ca
     if category in VISITED:
         return
 
-    print(f"Scraping {category}")
+    print(f"Scraping {category}. Queue size: {QUEUE.qsize()}")
     if count == 50:
         sesh.close()
-        sesh = requests.session()
+        sesh = requests.Session()
         count = 0
 
     count += 1
@@ -116,7 +112,6 @@ def scrape_category(sesh: requests.Session, count: int, filename: str, parent_ca
     write_to_file(sites, filename)
     VISITED.add(category)
 
-
     # get subcategories, put in queue
     sub_cats = get_subcategories(page_text)
     for sub_cat in sub_cats:
@@ -124,7 +119,8 @@ def scrape_category(sesh: requests.Session, count: int, filename: str, parent_ca
             print(f"Just added {sub_cat}")
             QUEUE.put(sub_cat)
 
-def check_cat(category: any, parent_cat: str) -> bool:
+
+def check_cat(category: str, parent_cat: str) -> bool:
     """
     Helper function for scrape_category to make sure category is in parent directory
     before being scraped
@@ -134,7 +130,6 @@ def check_cat(category: any, parent_cat: str) -> bool:
     Returns: boolean
 
     """
-    category = str(category)
     cat = category.split("/")
     if cat[2] == parent_cat:
         return True
@@ -142,9 +137,8 @@ def check_cat(category: any, parent_cat: str) -> bool:
         return False
 
 
-
 def main():
-    sesh = requests.session()
+    sesh = requests.Session()
     count = 0
 
     parent_cat = input("Enter a category to scrape: ")
@@ -171,6 +165,6 @@ def main():
 
     sesh.close()
 
+
 if __name__ == "__main__":
     main()
-
