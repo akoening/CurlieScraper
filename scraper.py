@@ -2,6 +2,7 @@ import json
 import queue
 import requests
 from bs4 import BeautifulSoup
+from time import sleep
 
 """
 Curlie Scraper 
@@ -36,21 +37,17 @@ def get_sites(html: BeautifulSoup, category: str) -> list:
     :return: dictionary mapping business name to url and category
     """
     sites = []
-    try:
-        start = html.find_all("div", class_="site-title")
-        if start:
-            for each in start:
-                site = each.find("a", target="_blank")
-                if site not in sites:
-                    current = {
-                        "Name": site.text,
-                        "URL": site.get("href"),
-                        "Category": category,
-                    }
-                    sites.append(current)
-        return sites
-    except AttributeError:
-        return sites
+    start = html.find_all("div", class_="site-title")
+    for each in start:
+        site = each.find("a", target="_blank")
+        if site not in sites:
+            current = {
+                "Name": site.text,
+                "URL": site.get("href"),
+                "Category": category,
+            }
+            sites.append(current)
+    return sites
 
 
 def get_subcategories(html: BeautifulSoup) -> list:
@@ -62,11 +59,10 @@ def get_subcategories(html: BeautifulSoup) -> list:
     """
     start = html.find_all("div", class_="cat-list results leaf-nodes")
     all_cats = []
-    if start is not None:
-        for each in start:
-            cat_cmpts = each.find_all("div", class_="cat-item")
-            cats = [cmpt.find("a").get("href") for cmpt in cat_cmpts]
-            all_cats.extend(cats)
+    for each in start:
+        cat_cmpts = each.find_all("div", class_="cat-item")
+        cats = [cmpt.find("a").get("href") for cmpt in cat_cmpts]
+        all_cats.extend(cats)
     return all_cats
 
 
@@ -85,7 +81,7 @@ def write_to_file(sites: list, filename: str) -> None:
 
 def scrape_category(
     sesh: requests.Session, count: int, filename: str, parent_cat: str
-) -> None:
+) -> int:
     """
     1) requests category, 2) gets subcategories, 3) gets sites, 4) writes sites to file
     :param sesh: requests session
@@ -97,7 +93,7 @@ def scrape_category(
 
     # check if category already visited
     if category in VISITED:
-        return
+        return count
 
     print(f"Scraping {category}. Queue size: {QUEUE.qsize()}")
     if count == 50:
@@ -107,8 +103,15 @@ def scrape_category(
 
     count += 1
     page_text = search(sesh, category).find("div")
+    sleeptime = 600
+
+    while page_text is None:
+        sleep(sleeptime)
+        page_text = search(sesh, category).find("div")
+        sleeptime += 600
 
     sites = get_sites(page_text, category)
+
     write_to_file(sites, filename)
     VISITED.add(category)
 
@@ -118,7 +121,7 @@ def scrape_category(
         if check_cat(sub_cat, parent_cat):
             print(f"Just added {sub_cat}")
             QUEUE.put(sub_cat)
-
+    return count
 
 def check_cat(category: str, parent_cat: str) -> bool:
     """
